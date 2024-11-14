@@ -52,7 +52,7 @@ export default class Three {
     this.controls.minPolarAngle = 0; // radians
     this.controls.maxPolarAngle = Math.PI / 2; // radians
     this.controls.minDistance = 1; // Minimum distance the camera can zoom in
-    this.controls.maxDistance = 2; // Maximum distance the camera can zoom out
+    this.controls.maxDistance = 1.5; // Maximum distance the camera can zoom out
     this.controls.enablePan = false; // Disable panning
     this.controls.autoRotate = false;
     this.controls.enableZoom = true;
@@ -65,7 +65,7 @@ export default class Three {
     this.setGeometry();
     // this.devGUIParams();
     this.render();
-    this.raycasterListener();
+    // this.raycasterListener();
     this.setResize();
   }
 
@@ -115,7 +115,7 @@ export default class Three {
     this.earthMesh = new THREE.Mesh(this.earthGeometry, this.earthMaterial);
     this.earthMesh.castShadow = true;
     this.earthMesh.position.set(0, 0, 0);
-    this.earthMesh.rotation.y = Math.PI;
+    this.earthMesh.rotation.y = Math.PI / 0.95;
     this.scene.add(this.earthMesh);
 
     this.boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -136,40 +136,51 @@ export default class Three {
     const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
     const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-    const countries = [
-      'Delhi',
-      'Bengaluru',
-    ];
-
+    const cities = ['Delhi', 'Bengaluru'];
     const positions = [
-      [0.1544611227187961, 0.3664286103969783, -0.6357591595224292],
-      [0.15537351775953057, 0.17429947248569583, -0.7126326331841278],
+      new THREE.Vector3(0.1544611227187961, 0.3664286103969783, -0.6357591595224292),
+      new THREE.Vector3(0.15537351775953057, 0.17429947248569583, -0.7126326331841278),
     ];
 
-    for (let i = 0; i < countries.length; i++) {
+    for (let i = 0; i < cities.length; i++) {
       const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-      marker.position.set(...positions[i]);
+      marker.position.copy(positions[i]);
 
-      // Create label
       const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
-      labelDiv.textContent = countries[i];
-      // labelDiv.style.display = 'none';
+      labelDiv.textContent = cities[i];
       labelDiv.style.visibility = 'hidden';
-      // labelDiv.style.zIndex = -1;
+
       const label = new CSS2DObject(labelDiv);
       label.position.set(0, 0.02, 0);
       marker.add(label);
 
-      marker.addEventListener('click', function () {
+      marker.addEventListener('click', () => {
         label.element.style.display = 'block';
       });
 
-      // Store label element in user data for easy access
       marker.userData.labelElement = labelDiv;
-
       this.earthMesh.add(marker);
     }
+
+    const delhi = positions[0];
+    const bengaluru = positions[1];
+    const midpoint = new THREE.Vector3().addVectors(delhi, bengaluru).multiplyScalar(0.5);
+
+    const controlPoints = [delhi, midpoint, bengaluru];
+    const scaleFactor = 1.1;
+    const scaledControlPoints = controlPoints.map((point, index) => {
+      if (index === 0 || index === controlPoints.length - 1) return point;
+      return point.clone().multiplyScalar(scaleFactor);
+    });
+
+    const curve = new THREE.CatmullRomCurve3(scaledControlPoints);
+    const points = curve.getPoints(100);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+    const spline = new THREE.Line(geometry, material);
+
+    this.earthMesh.add(spline);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -203,7 +214,7 @@ export default class Three {
         if (intersectedObject.userData.labelElement) {
           intersectedObject.userData.labelElement.style.visibility =
             intersectedObject.userData.labelElement.style.visibility ===
-            'visible'
+              'visible'
               ? 'hidden'
               : 'visible';
         }
@@ -248,7 +259,7 @@ export default class Three {
       this.onMouseClickAddMarker.bind(this),
       false
     );
-}
+  }
   onMouseClickAddMarker(event) {
     event.preventDefault();
     // Check if event is a touch event
@@ -286,7 +297,6 @@ export default class Three {
     this.labelRenderer.render(this.scene, this.camera);
 
     // this.earthMesh.rotation.y = 0.1 * elapsedTime;
-
     this.controls.update();
 
     this.renderer.render(this.scene, this.camera);
