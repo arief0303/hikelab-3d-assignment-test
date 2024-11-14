@@ -40,17 +40,14 @@ const points = curve.getPoints(100);
 const geometry = new THREE.BufferGeometry().setFromPoints(points);
 const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 const spline = new THREE.Line(geometry, material);
-const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
-const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
 const cities = ['Delhi', 'Bengaluru'];
 const shadowQualityMultiplier = 4;
 // const marker = new THREE.Mesh(markerGeometry, markerMaterial);
 // Create a marker that will animate along the spline
-const movingMarkerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
-const movingMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-const movingMarker = new THREE.Mesh(movingMarkerGeometry, movingMarkerMaterial);
 let airplane;
+const cityMarkers = [];
+const cityTori = [];
 
 export default class Three {
   constructor(canvas) {
@@ -94,12 +91,11 @@ export default class Three {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
-
     this.setLights();
     this.setGeometry();
     // this.devGUIParams();
     this.render();
-    // this.raycasterListener();
+    this.raycasterListener();
     this.setResize();
   }
 
@@ -167,28 +163,27 @@ export default class Three {
     this.scene.add(this.floorMesh);
 
     for (let i = 0; i < cities.length; i++) {
+      const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
+      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Create a new material instance for each marker
       const marker = new THREE.Mesh(markerGeometry, markerMaterial); // Create a new marker instance for each city
       marker.position.copy(positions[i]);
-
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'label';
-      labelDiv.textContent = cities[i];
-      labelDiv.style.visibility = 'hidden';
-
-      const label = new CSS2DObject(labelDiv);
-      label.position.set(0, 0.02, 0);
-      marker.add(label);
-
-      marker.addEventListener('click', () => {
-        label.element.style.display = 'block';
-      });
-
-      marker.userData.labelElement = labelDiv;
+      cityMarkers.push(marker); // Store the marker in the array
       this.earthMesh.add(marker);
+
+      // Create a torus surrounding each marker
+      const torusGeometry = new THREE.TorusGeometry(0.009, 0.001, 16, 100); // Adjusted parameters for a smaller torus
+      const torusMaterial = new THREE.MeshBasicMaterial({ color: cities[i] === 'Delhi' ? 0xff0000 : 0x0000ff }); // Red for Delhi, blue for others
+      const torus = new THREE.Mesh(torusGeometry, torusMaterial);
+      torus.position.copy(positions[i]);
+
+      // Rotate the torus to be parallel with the earthMesh while accounting for curvature
+      const normal = new THREE.Vector3().copy(positions[i]).normalize();
+      torus.lookAt(normal);
+      cityTori.push(torus);
+      this.earthMesh.add(torus);
     }
 
     this.earthMesh.add(spline);
-    this.earthMesh.add(movingMarker);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -247,9 +242,9 @@ export default class Three {
     loader.load('public/assets/gltf/airplane.glb', (gltf) => {
       airplane = gltf.scene;
       airplane.scale.set(0.0001, 0.0001, 0.0001); // Adjust the scale as needed
-      airplane.rotation.y=Math.PI/2;
-      airplane.rotation.x=Math.PI/-2.8;
-      
+      airplane.rotation.y = Math.PI / 2;
+      airplane.rotation.x = Math.PI / -2.8;
+
       this.earthMesh.add(airplane);
     });
 
@@ -278,7 +273,7 @@ export default class Three {
   }
 
   raycasterListener() {
-    this.canvas.addEventListener(
+    /* this.canvas.addEventListener(
       'click',
       this.onMouseClickAddMarker.bind(this),
       false
@@ -287,8 +282,30 @@ export default class Three {
       'touchstart',
       this.onMouseClickAddMarker.bind(this),
       false
-    );
+    ); */
+    this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this), false);
   }
+
+  onMouseMove(event) {
+    // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // Update the raycaster with the camera and mouse position
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // Calculate objects intersecting the picking ray
+    const intersects = this.raycaster.intersectObjects(cityMarkers);
+
+    // Reset all markers to their original color
+    cityMarkers.forEach(marker => marker.material.color.set(0xff0000));
+
+    // Change color of intersected markers to blue
+    for (let i = 0; i < intersects.length; i++) {
+      intersects[i].object.material.color.set(0x0000ff);
+    }
+  }
+
   onMouseClickAddMarker(event) {
     event.preventDefault();
     // Check if event is a touch event
@@ -325,7 +342,6 @@ export default class Three {
 
     // Update the marker's position along the spline
     // const point = curve.getPointAt(animationProgress);
-    // movingMarker.position.copy(point);
     // this.planeMesh.rotation.x = 0.2 * elapsedTime;
     // this.planeMesh.rotation.y = 0.1 * elapsedTime;
     // Update the airplane's position along the spline
@@ -338,6 +354,12 @@ export default class Three {
     if (this.cloudMesh) {
       this.cloudMesh.rotation.y += 0.0005; // Adjust the speed as needed
     }
+
+    // Update the torus radius to create a pulsating effect
+  cityTori.forEach(torus => {
+    const scale = 1 + 0.5 * Math.sin(elapsedTime * 2); // Adjust the pulsating speed and amplitude
+    torus.scale.set(scale, scale, scale);
+  });
 
     // Render labels
     this.labelRenderer.render(this.scene, this.camera);
