@@ -56,28 +56,6 @@ export default class Three {
     this.controls.enablePan = false; // Disable panning
     this.controls.autoRotate = false;
     this.controls.enableZoom = true;
-    this.controls.autoRotate = true;
-
-    let autoRotateTimeout = null;
-
-    // Listen for the start event
-    this.controls.addEventListener('start', () => {
-      // When the user starts rotating the object, disable auto-rotate
-      this.controls.autoRotate = false;
-    });
-
-    // Listen for the end event
-    this.controls.addEventListener('end', () => {
-      // If there's an existing timeout, clear it
-      if (autoRotateTimeout) {
-        clearTimeout(autoRotateTimeout);
-      }
-
-      // When the user stops rotating the object, re-enable auto-rotate after 1 second
-      autoRotateTimeout = setTimeout(() => {
-        this.controls.autoRotate = true;
-      }, 3500);
-    });
 
     this.clock = new THREE.Clock();
     this.raycaster = new THREE.Raycaster();
@@ -137,6 +115,7 @@ export default class Three {
     this.earthMesh = new THREE.Mesh(this.earthGeometry, this.earthMaterial);
     this.earthMesh.castShadow = true;
     this.earthMesh.position.set(0, 0, 0);
+    this.earthMesh.rotation.y = Math.PI;
     this.scene.add(this.earthMesh);
 
     this.boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -154,31 +133,17 @@ export default class Three {
     this.floorMesh.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
     this.scene.add(this.floorMesh);
 
-    const markerGeometry = new THREE.SphereGeometry(0.02, 30, 30);
+    const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
     const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
     const countries = [
-      'Sweden',
-      'Netherlands',
-      'Belgium',
-      'Germany',
-      'Austria',
-      'Finland',
-      'Norway',
-      'Denmark',
-      'UK'
+      'Delhi',
+      'Bengaluru',
     ];
 
     const positions = [
-      [0.380149663443285, 0.6385228794229616, -0.10058195022108646],
-      [0.45617348073141006, 0.5930106442030869, -0.050987769081875876],
-      [0.4857288687189919, 0.5701967661478881, -0.03532143478284532],
-      [0.4553364469061161, 0.5882203904432914, -0.09497210927679453],
-      [0.4904303035914148, 0.5529520619333614, -0.12681852247793027],
-      [0.30555990770545594, 0.6665429313721688, -0.15719577282866856],
-      [0.35350183602260454, 0.6590480542759765, -0.05550901885052675],
-      [0.41299273882911236, 0.6223106646619474, -0.06739281443235233],
-      [0.4539199436982325, 0.5966705143382321, 0.015983415437203885]
+      [0.1544611227187961, 0.3664286103969783, -0.6357591595224292],
+      [0.15537351775953057, 0.17429947248569583, -0.7126326331841278],
     ];
 
     for (let i = 0; i < countries.length; i++) {
@@ -272,7 +237,44 @@ export default class Three {
     fogFolder.open();
   }
 
-  raycasterListener() {}
+  raycasterListener() {
+    this.canvas.addEventListener(
+      'click',
+      this.onMouseClickAddMarker.bind(this),
+      false
+    );
+    this.canvas.addEventListener(
+      'touchstart',
+      this.onMouseClickAddMarker.bind(this),
+      false
+    );
+}
+  onMouseClickAddMarker(event) {
+    event.preventDefault();
+    // Check if event is a touch event
+    if (event.changedTouches) {
+      event.clientX = event.changedTouches[0].clientX;
+      event.clientY = event.changedTouches[0].clientY;
+    }
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects([this.earthMesh]);
+    if (intersects.length > 0) {
+      const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
+      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+      // Convert the intersection point to the earthMesh's local coordinate system
+      marker.position.copy(
+        this.earthMesh.worldToLocal(intersects[0].point.clone())
+      );
+      console.log(
+        `Marker placed at coordinates: ${marker.position.x}, ${marker.position.y}, ${marker.position.z}`
+      );
+      // Add the marker as a child of the earthMesh
+      this.earthMesh.add(marker);
+    }
+  }
 
   render() {
     const elapsedTime = this.clock.getElapsedTime();
@@ -283,7 +285,7 @@ export default class Three {
     // Render labels
     this.labelRenderer.render(this.scene, this.camera);
 
-    this.earthMesh.rotation.y = 0.1 * elapsedTime;
+    // this.earthMesh.rotation.y = 0.1 * elapsedTime;
 
     this.controls.update();
 
