@@ -239,7 +239,7 @@ export default class Three {
 
     // Load the airplane model
     const loader = new GLTFLoader();
-    loader.load('public/assets/gltf/airplane.glb', (gltf) => {
+    loader.load('/assets/gltf/airplane.glb', (gltf) => {
       airplane = gltf.scene;
       airplane.scale.set(0.0001, 0.0001, 0.0001); // Adjust the scale as needed
       airplane.rotation.y = Math.PI / 2;
