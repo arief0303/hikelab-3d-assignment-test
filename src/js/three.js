@@ -15,9 +15,41 @@ const device = {
   height: window.innerHeight - 1, //-1 to avoid scrollbars
   pixelRatio: window.devicePixelRatio
 };
-
+const positions = [
+  new THREE.Vector3(0.1544611227187961, 0.3664286103969783, -0.6357591595224292),
+  new THREE.Vector3(0.15537351775953057, 0.17429947248569583, -0.7126326331841278),
+];
 const modelUrl = 'assets/gltf/bunny.gltf';
 const albedoMap = new THREE.TextureLoader().load('assets/textures/Albedo.jpg');
+// Animation progress variable
+let animationProgress = 0;
+const delhi = positions[0];
+const bengaluru = positions[1];
+const midpoint = new THREE.Vector3().addVectors(delhi, bengaluru).multiplyScalar(0.5);
+
+const controlPoints = [delhi, midpoint, bengaluru];
+const scaleFactor = 1.1;
+const scaledControlPoints = controlPoints.map((point, index) => {
+  if (index === 0 || index === controlPoints.length - 1) return point;
+  return point.clone().multiplyScalar(scaleFactor);
+});
+
+const curve = new THREE.CatmullRomCurve3(scaledControlPoints);
+const points = curve.getPoints(100);
+const geometry = new THREE.BufferGeometry().setFromPoints(points);
+const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+const spline = new THREE.Line(geometry, material);
+const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
+const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+const cities = ['Delhi', 'Bengaluru'];
+const shadowQualityMultiplier = 4;
+// const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+// Create a marker that will animate along the spline
+const movingMarkerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
+const movingMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+const movingMarker = new THREE.Mesh(movingMarkerGeometry, movingMarkerMaterial);
+
 
 export default class Three {
   constructor(canvas) {
@@ -70,7 +102,6 @@ export default class Three {
   }
 
   setLights() {
-    const shadowQualityMultiplier = 4;
 
     this.sunLight = new THREE.DirectionalLight(0xffffff, 1); // white color, full intensity
     this.sunLight.position.set(15, 50, 30);
@@ -133,54 +164,34 @@ export default class Three {
     this.floorMesh.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
     this.scene.add(this.floorMesh);
 
-    const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
-    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-    const cities = ['Delhi', 'Bengaluru'];
-    const positions = [
-      new THREE.Vector3(0.1544611227187961, 0.3664286103969783, -0.6357591595224292),
-      new THREE.Vector3(0.15537351775953057, 0.17429947248569583, -0.7126326331841278),
-    ];
 
     for (let i = 0; i < cities.length; i++) {
-      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+      const marker = new THREE.Mesh(markerGeometry, markerMaterial); // Create a new marker instance for each city
       marker.position.copy(positions[i]);
-
+    
       const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
       labelDiv.textContent = cities[i];
       labelDiv.style.visibility = 'hidden';
-
+    
       const label = new CSS2DObject(labelDiv);
       label.position.set(0, 0.02, 0);
       marker.add(label);
-
+    
       marker.addEventListener('click', () => {
         label.element.style.display = 'block';
       });
-
+    
       marker.userData.labelElement = labelDiv;
       this.earthMesh.add(marker);
     }
 
-    const delhi = positions[0];
-    const bengaluru = positions[1];
-    const midpoint = new THREE.Vector3().addVectors(delhi, bengaluru).multiplyScalar(0.5);
 
-    const controlPoints = [delhi, midpoint, bengaluru];
-    const scaleFactor = 1.1;
-    const scaledControlPoints = controlPoints.map((point, index) => {
-      if (index === 0 || index === controlPoints.length - 1) return point;
-      return point.clone().multiplyScalar(scaleFactor);
-    });
-
-    const curve = new THREE.CatmullRomCurve3(scaledControlPoints);
-    const points = curve.getPoints(100);
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-    const spline = new THREE.Line(geometry, material);
 
     this.earthMesh.add(spline);
+
+    this.earthMesh.add(movingMarker);
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -290,6 +301,13 @@ export default class Three {
   render() {
     const elapsedTime = this.clock.getElapsedTime();
 
+    // Update the animation progress
+    animationProgress += 0.001; // Adjust the speed as needed
+    if (animationProgress > 1) animationProgress = 0;
+
+    // Update the marker's position along the spline
+    const point = curve.getPointAt(animationProgress);
+    movingMarker.position.copy(point);
     // this.planeMesh.rotation.x = 0.2 * elapsedTime;
     // this.planeMesh.rotation.y = 0.1 * elapsedTime;
 
