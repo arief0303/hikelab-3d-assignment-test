@@ -49,7 +49,7 @@ const shadowQualityMultiplier = 4;
 const movingMarkerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
 const movingMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
 const movingMarker = new THREE.Mesh(movingMarkerGeometry, movingMarkerMaterial);
-
+let airplane;
 
 export default class Three {
   constructor(canvas) {
@@ -92,6 +92,7 @@ export default class Three {
     this.clock = new THREE.Clock();
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
+
 
     this.setLights();
     this.setGeometry();
@@ -146,7 +147,7 @@ export default class Three {
     this.earthMesh = new THREE.Mesh(this.earthGeometry, this.earthMaterial);
     this.earthMesh.castShadow = true;
     this.earthMesh.position.set(0, 0, 0);
-    this.earthMesh.rotation.y = Math.PI / 0.95;
+    this.earthMesh.rotation.y = Math.PI / 0.9;
     this.scene.add(this.earthMesh);
 
     this.boxGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -164,33 +165,28 @@ export default class Three {
     this.floorMesh.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
     this.scene.add(this.floorMesh);
 
-
-
     for (let i = 0; i < cities.length; i++) {
       const marker = new THREE.Mesh(markerGeometry, markerMaterial); // Create a new marker instance for each city
       marker.position.copy(positions[i]);
-    
+
       const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
       labelDiv.textContent = cities[i];
       labelDiv.style.visibility = 'hidden';
-    
+
       const label = new CSS2DObject(labelDiv);
       label.position.set(0, 0.02, 0);
       marker.add(label);
-    
+
       marker.addEventListener('click', () => {
         label.element.style.display = 'block';
       });
-    
+
       marker.userData.labelElement = labelDiv;
       this.earthMesh.add(marker);
     }
 
-
-
     this.earthMesh.add(spline);
-
     this.earthMesh.add(movingMarker);
 
     this.labelRenderer = new CSS2DRenderer();
@@ -244,6 +240,16 @@ export default class Three {
     const skyboxGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
     const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
     this.scene.add(skybox);
+
+    // Load the airplane model
+    const loader = new GLTFLoader();
+    loader.load('public/assets/gltf/airplane.glb', (gltf) => {
+      airplane = gltf.scene;
+      airplane.scale.set(0.0001, 0.0001, 0.0001); // Adjust the scale as needed
+      airplane.rotation.y=Math.PI/2;
+      airplane.rotation.x=Math.PI/-2.8;
+      this.earthMesh.add(airplane);
+    });
   }
 
   devGUIParams() {
@@ -306,11 +312,15 @@ export default class Three {
     if (animationProgress > 1) animationProgress = 0;
 
     // Update the marker's position along the spline
-    const point = curve.getPointAt(animationProgress);
-    movingMarker.position.copy(point);
+    // const point = curve.getPointAt(animationProgress);
+    // movingMarker.position.copy(point);
     // this.planeMesh.rotation.x = 0.2 * elapsedTime;
     // this.planeMesh.rotation.y = 0.1 * elapsedTime;
-
+    // Update the airplane's position along the spline
+    if (airplane) {
+      const point = curve.getPointAt(animationProgress);
+      airplane.position.copy(point);
+    }
     // Render labels
     this.labelRenderer.render(this.scene, this.camera);
 
