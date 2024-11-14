@@ -164,7 +164,7 @@ export default class Three {
 
     for (let i = 0; i < cities.length; i++) {
       const markerGeometry = new THREE.SphereGeometry(0.004, 30, 30);
-      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Create a new material instance for each marker
+      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Create a new material instance for each marker
       const marker = new THREE.Mesh(markerGeometry, markerMaterial); // Create a new marker instance for each city
       marker.position.copy(positions[i]);
       cityMarkers.push(marker); // Store the marker in the array
@@ -298,7 +298,7 @@ export default class Three {
     const intersects = this.raycaster.intersectObjects(cityMarkers);
 
     // Reset all markers to their original color
-    cityMarkers.forEach(marker => marker.material.color.set(0xff0000));
+    cityMarkers.forEach(marker => marker.material.color.set(0x00ff00));
 
     // Change color of intersected markers to blue
     for (let i = 0; i < intersects.length; i++) {
