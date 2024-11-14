@@ -21,6 +21,7 @@ const positions = [
 ];
 const modelUrl = 'assets/gltf/bunny.gltf';
 const albedoMap = new THREE.TextureLoader().load('assets/textures/Albedo.jpg');
+const cloudTexture = new THREE.TextureLoader().load('assets/textures/2k_earth_clouds.jpg'); // Load the cloud texture
 // Animation progress variable
 let animationProgress = 0;
 const delhi = positions[0];
@@ -248,8 +249,19 @@ export default class Three {
       airplane.scale.set(0.0001, 0.0001, 0.0001); // Adjust the scale as needed
       airplane.rotation.y=Math.PI/2;
       airplane.rotation.x=Math.PI/-2.8;
+      
       this.earthMesh.add(airplane);
     });
+
+    // Create the cloud sphere
+    const cloudGeometry = new THREE.SphereGeometry(0.76, 128, 128); // Slightly larger than the earthMesh
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      map: cloudTexture,
+      transparent: true,
+      opacity: 0.5
+    });
+    this.cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+    this.earthMesh.add(this.cloudMesh);
   }
 
   devGUIParams() {
@@ -321,6 +333,12 @@ export default class Three {
       const point = curve.getPointAt(animationProgress);
       airplane.position.copy(point);
     }
+
+    // Rotate the cloud layer
+    if (this.cloudMesh) {
+      this.cloudMesh.rotation.y += 0.0005; // Adjust the speed as needed
+    }
+
     // Render labels
     this.labelRenderer.render(this.scene, this.camera);
 
